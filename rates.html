@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="code">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rates.term — курсы валют и крипты</title>
+<style>
+  /* ---------- тема: code (кодерская, по умолчанию) ---------- */
+  [data-theme="code"]{
+    --bg:#0D0F12; --panel:#14171C; --raised:#1B1F26; --line:#262C35;
+    --text:#E8ECF1; --muted:#8A94A6; --accent:#5E9FE8; --accent-soft:rgba(94,159,232,.14);
+    --green:#72BC8F; --green-soft:rgba(114,188,143,.13);
+    --red:#E97366;  --red-soft:rgba(233,115,102,.13);
+    --amber:#DE9255;
+    --mono:"JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --ui:var(--mono);
+    --radius:10px;
+  }
+  /* ---------- тема: clean (светлая) ---------- */
+  [data-theme="clean"]{
+    --bg:#FFFFFF; --panel:#F9F8F7; --raised:#F0EFED; --line:#E6E5E3;
+    --text:#2C2C2B; --muted:#7D7A75; --accent:#2783DE; --accent-soft:#E5F2FC;
+    --green:#46A171; --green-soft:#E8F1EC;
+    --red:#E56458;  --red-soft:#FCE9E7;
+    --amber:#D5803B;
+    --mono:Menlo,Consolas,"Liberation Mono",monospace;
+    --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:12px;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);font-size:16px;line-height:1.5;
+       -webkit-font-smoothing:antialiased}
+  [data-theme="code"] body{
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),
+                     linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:56px 56px; background-position:-1px -1px;
+  }
+  [data-theme="code"] .shade{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(1100px 620px at 22% -8%, rgba(94,159,232,.14), transparent 62%), var(--bg);
+    opacity:.92}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+
+  /* ---------- шапка ---------- */
+  header{position:sticky;top:0;z-index:6;background:color-mix(in srgb, var(--bg) 88%, transparent);
+         backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:16px;height:64px}
+  .logo{font-family:var(--mono);font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .logo i{width:9px;height:9px;border-radius:2px;background:var(--accent);display:block;font-style:normal}
+  .logo em{font-style:normal;color:var(--muted)}
+  .grow{flex:1}
+  .switch{display:flex;gap:2px;padding:3px;background:var(--raised);border:1px solid var(--line);border-radius:9px}
+  .switch button{border:0;background:transparent;color:var(--muted);font:inherit;font-family:var(--mono);font-size:13px;
+    padding:7px 12px;border-radius:7px;cursor:pointer;min-height:36px}
+  .switch button[aria-pressed="true"]{background:var(--bg);color:var(--text);font-weight:600}
+  .switch button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .clock{font-family:var(--mono);font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green)}
+  @media (prefers-reduced-motion: no-preference){
+    .pulse{animation:p 2.4s infinite}
+    @keyframes p{0%{box-shadow:0 0 0 0 rgba(114,188,143,.5)}70%{box-shadow:0 0 0 8px rgba(114,188,143,0)}100%{box-shadow:0 0 0 0 rgba(114,188,143,0)}}
+  }
+
+  /* ---------- герой ---------- */
+  .hero{padding:56px 0 40px;display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);
+          display:inline-block;margin-bottom:14px}
+  h1{margin:0;font-size:42px;line-height:1.1;letter-spacing:-.03em;font-weight:600}
+  [data-theme="code"] h1{font-family:var(--mono);letter-spacing:-.045em}
+  .lead{margin:16px 0 0;color:var(--muted);max-width:520px;font-size:15px}
+  .meta{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap;font-family:var(--mono)}
+  .pill{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .pill.on{border-color:transparent;background:var(--green-soft);color:var(--green)}
+  .pill.off{border-color:transparent;background:var(--accent-soft);color:var(--accent)}
+
+  .card{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  .conv{padding:22px}
+  .conv h2{margin:0 0 16px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .field{display:flex;gap:8px;margin-bottom:10px}
+  .field input,.field select{font:inherit;font-family:var(--mono);font-size:14px;color:var(--text);background:var(--bg);
+    border:1px solid var(--line);border-radius:8px;padding:12px;min-height:48px;width:100%}
+  .field select{width:132px;flex:none}
+  .swap{display:flex;justify-content:center;margin:2px 0 8px}
+  .swap button{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--muted);
+    cursor:pointer;font-size:15px}
+  .swap button:hover{background:var(--raised);color:var(--text)}
+  .result{border-top:1px solid var(--line);margin-top:14px;padding-top:14px;display:flex;justify-content:space-between;
+          align-items:baseline;gap:12px;font-family:var(--mono)}
+  .result b{font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .result span{font-size:12.5px;color:var(--muted)}
+
+  /* ---------- секции ---------- */
+  section{padding:0 0 44px}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
+  h2.title{margin:0;font-size:22px;letter-spacing:-.02em;font-weight:600}
+  [data-theme="code"] h2.title{font-family:var(--mono)}
+  .sec-head p{margin:0;color:var(--muted);font-size:13px;font-family:var(--mono)}
+
+  .movers{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .mover{padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  .mover .sym{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted);
+              font-family:var(--mono)}
+  .mover .val{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:8px;letter-spacing:-.01em}
+  .mover .sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+  .mover canvas{display:block;width:100%;height:38px;margin-top:10px}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{margin-left:auto}
+  .search input{font:inherit;font-family:var(--mono);font-size:14px;padding:10px 12px;min-height:44px;width:250px;
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text)}
+
+  .tablewrap{border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;background:var(--panel)}
+  table{width:100%;border-collapse:collapse;min-width:820px}
+  th,td{text-align:right;padding:13px 16px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:14px}
+  th{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+     font-weight:600;background:var(--raised);cursor:pointer;user-select:none}
+  th span.ar{opacity:.55;margin-left:5px}
+  th:first-child,td:first-child{text-align:left}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--raised)}
+  .asset{display:flex;align-items:center;gap:12px}
+  .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;
+       font-weight:600;background:var(--raised);border:1px solid var(--line);flex:none}
+  .ico.c{color:var(--amber)} .ico.f{color:var(--accent)}
+  .nm{display:flex;flex-direction:column;line-height:1.25}
+  .nm b{font-family:var(--mono);font-size:13.5px;font-weight:600}
+  .nm span{color:var(--muted);font-size:12px}
+  td.num{font-family:var(--mono);font-size:13px}
+  td.num small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .chg{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-family:var(--mono);
+       font-size:12.5px;font-weight:600}
+  .up{background:var(--green-soft);color:var(--green)}
+  .down{background:var(--red-soft);color:var(--red)}
+  .flat{background:var(--raised);color:var(--muted)}
+  td canvas{display:block;width:118px;height:34px}
+  .empty{padding:32px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:14px}
+
+  footer{border-top:1px solid var(--line);padding:22px 0 48px;color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+
+  @media (max-width:980px){
+    .wrap{padding:0 20px}
+    .hero{grid-template-columns:1fr;gap:28px;padding:36px 0 28px}
+    h1{font-size:30px}
+    .movers{grid-template-columns:repeat(2,1fr)}
+    .bar{height:auto;padding:12px 0;flex-wrap:wrap;gap:10px}
+    .clock{order:3;width:100%}
+    .search{margin-left:0;width:100%}
+    .search input{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="shade"></div>
+
+<header>
+  <div class="wrap bar">
+    <div class="logo"><i></i>rates<em>.term</em></div>
+    <div class="grow"></div>
+    <div class="switch" role="group" aria-label="Базовая валюта">
+      <button data-base="USD" aria-pressed="true">USD $</button>
+      <button data-base="RUB" aria-pressed="false">RUB ₽</button>
+    </div>
+    <div class="switch" role="group" aria-label="Оформление">
+      <button data-theme-btn="code"  aria-pressed="true">&lt;/&gt; code</button>
+      <button data-theme-btn="clean" aria-pressed="false">○ clean</button>
+    </div>
+    <div class="clock"><span class="pulse"></span><span id="upd">инициализация…</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <span class="kicker">// 20 активов · обновление каждые 5 секунд</span>
+        <h1>Курсы валют<br>и крипты — $ и ₽</h1>
+        <p class="lead">5 мировых валют и 15 криптовалют в одной таблице: цена сразу в долларах и рублях, графики динамики, сортировка, поиск и конвертер. Два режима оформления — переключаются в шапке.</p>
+        <div class="meta">
+          <span class="pill" id="srcPill">source: проверка…</span>
+          <span class="pill" id="basePill">base: USD</span>
+          <span class="pill" id="rubPill">USD/RUB: —</span>
+        </div>
+      </div>
+
+      <div class="card conv">
+        <h2>Конвертер</h2>
+        <div class="field">
+          <input id="amount" type="number" value="1000" min="0" step="any" aria-label="Сумма">
+          <select id="from" aria-label="Из валюты"></select>
+        </div>
+        <div class="swap"><button id="swap" aria-label="Поменять валюты местами">⇅</button></div>
+        <div class="field">
+          <input id="out" type="text" readonly aria-label="Результат">
+          <select id="to" aria-label="В валюту"></select>
+        </div>
+        <div class="result"><b id="big">—</b><span id="pair">—</span></div>
+      </div>
+    </div>
+
+    <section>
+      <div class="sec-head">
+        <h2 class="title">Лидеры движения</h2>
+        <p>за 24ч</p>
+      </div>
+      <div class="movers" id="movers"></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2 class="title">Все активы</h2>
+        <p>клик по заголовку — сортировка</p>
+      </div>
+      <div class="toolbar">
+        <div class="switch" role="group" aria-label="Фильтр">
+          <button data-f="all"    aria-pressed="true">все 20</button>
+          <button data-f="fiat"   aria-pressed="false">валюты 5</button>
+          <button data-f="crypto" aria-pressed="false">крипта 15</button>
+        </div>
+        <div class="search"><input id="q" type="search" placeholder="grep: btc, евро, solana…" aria-label="Поиск актива"></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th data-s="id">Актив</th>
+            <th data-s="usd">Цена, USD</th>
+            <th data-s="rub">Цена, RUB</th>
+            <th data-s="chg">24ч</th>
+            <th data-s="chg7">7д</th>
+            <th>Динамика</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap">Демо-проект для портфолио. При доступе в сеть котировки тянутся из открытых API (open.er-api.com — валюты, CoinGecko — крипта), иначе работают встроенные демо-данные. Не является финансовой рекомендацией.</div></footer>
+
+<script>
+/* ================= данные ================= */
+let USDRUB = 88.60;                    // демо-курс, обновляется из API при наличии сети
+const CG = {BTC:'bitcoin',ETH:'ethereum',USDT:'tether',BNB:'binancecoin',SOL:'solana',XRP:'ripple',
+            TON:'the-open-network',DOGE:'dogecoin',ADA:'cardano',TRX:'tron',AVAX:'avalanche-2',
+            LINK:'chainlink',DOT:'polkadot',LTC:'litecoin',ATOM:'cosmos'};
+
+/* usd = сколько долларов стоит 1 единица актива */
+const ASSETS = [
+  {id:'EUR', name:'Евро',                type:'fiat',   usd:1.087},
+  {id:'GBP', name:'Фунт стерлингов',    type:'fiat',   usd:1.271},
+  {id:'CHF', name:'Швейцарский франк',  type:'fiat',   usd:1.118},
+  {id:'JPY', name:'Японская иена',      type:'fiat',   usd:0.00643},
+  {id:'CNY', name:'Китайский юань',     type:'fiat',   usd:0.1389},
+  {id:'BTC', name:'Bitcoin',             type:'crypto', usd:67420},
+  {id:'ETH', name:'Ethereum',            type:'crypto', usd:3512},
+  {id:'USDT',name:'Tether',              type:'crypto', usd:1.0002, vol:0.0004},
+  {id:'BNB', name:'BNB',                 type:'crypto', usd:604.2},
+  {id:'SOL', name:'Solana',              type:'crypto', usd:172.4},
+  {id:'XRP', name:'XRP',                 type:'crypto', usd:0.612},
+  {id:'TON', name:'Toncoin',             type:'crypto', usd:7.18},
+  {id:'DOGE',name:'Dogecoin',            type:'crypto', usd:0.1584},
+  {id:'ADA', name:'Cardano',             type:'crypto', usd:0.452},
+  {id:'TRX', name:'TRON',                type:'crypto', usd:0.1276},
+  {id:'AVAX',name:'Avalanche',           type:'crypto', usd:28.94},
+  {id:'LINK',name:'Chainlink',           type:'crypto', usd:14.62},
+  {id:'DOT', name:'Polkadot',            type:'crypto', usd:6.03},
+  {id:'LTC', name:'Litecoin',            type:'crypto', usd:74.9},
+  {id:'ATOM',name:'Cosmos',              type:'crypto', usd:8.41}
+];
+const VOL = {fiat:0.0016, crypto:0.011};
+const volOf = a => a.vol !== undefined ? a.vol : VOL[a.type];
+
+/* детерминированная история 60 точек */
+const seedRand = s => () => (s = (s*1664525 + 1013904223) & 0x7fffffff) / 0x7fffffff;
+function buildHistory(a, i){
+  const r = seedRand(i*7919 + 13), v = volOf(a);
+  let p = a.usd * (1 + (r()-0.5)*v*7);
+  a.hist = [];
+  for(let k=0;k<60;k++){ p *= 1 + (r()-0.5)*v*2.2; a.hist.push(p); }
+  a.hist[59] = a.usd;
+  recalc(a);
+}
+function recalc(a){
+  a.chg  = (a.usd/a.hist[Math.max(0, a.hist.length-9)] - 1)*100;
+  a.chg7 = (a.usd/a.hist[0] - 1)*100;
+  a.rub  = a.usd * USDRUB;
+}
+ASSETS.forEach(buildHistory);
+
+/* ================= состояние ================= */
+let base = localStorage.getItem('rates-base') || 'USD';
+let theme = localStorage.getItem('rates-theme') || 'code';
+let filter = 'all', query = '', sortKey = 'usd', sortDir = -1;
+document.documentElement.dataset.theme = theme;
+
+/* ================= формат ================= */
+function num(v){
+  const d = v >= 1000 ? 0 : v >= 1 ? 2 : v >= 0.01 ? 4 : 6;
+  return v.toLocaleString('ru-RU', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+const money = (v, cur) => cur === 'USD' ? '$' + num(v) : num(v) + ' ₽';
+const pf  = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%';
+const cls = v => Math.abs(v) < 0.02 ? 'flat' : v > 0 ? 'up' : 'down';
+const hexFor = v => {
+  const s = getComputedStyle(document.documentElement);
+  if(Math.abs(v) < 0.02) return s.getPropertyValue('--muted').trim();
+  return (v > 0 ? s.getPropertyValue('--green') : s.getPropertyValue('--red')).trim();
+};
+function alpha(hex, a){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+/* ================= спарклайн ================= */
+function spark(cv, data, color){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || 118, h = cv.clientHeight || 34;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const c = cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
+  const min = Math.min(...data), max = Math.max(...data), rng = (max-min) || 1;
+  const X = i => 1 + i*(w-2)/(data.length-1);
+  const Y = v => h-3 - (v-min)/rng*(h-6);
+  const g = c.createLinearGradient(0,0,0,h);
+  g.addColorStop(0, alpha(color,.28)); g.addColorStop(1, alpha(color,0));
+  c.beginPath(); c.moveTo(X(0), Y(data[0]));
+  data.forEach((v,i)=>c.lineTo(X(i), Y(v)));
+  c.lineTo(X(data.length-1), h); c.lineTo(X(0), h); c.closePath(); c.fillStyle = g; c.fill();
+  c.beginPath(); data.forEach((v,i)=> i ? c.lineTo(X(i),Y(v)) : c.moveTo(X(i),Y(v)));
+  c.strokeStyle = color; c.lineWidth = 1.6; c.lineJoin = 'round'; c.stroke();
+  c.beginPath(); c.arc(X(data.length-1), Y(data[data.length-1]), 2.2, 0, 6.283);
+  c.fillStyle = color; c.fill();
+}
+
+/* ================= рендер ================= */
+const rows = document.getElementById('rows');
+const val = (a, k) => k === 'id' ? a.id : k === 'usd' ? a.usd : k === 'rub' ? a.rub : a[k];
+
+function view(){
+  return ASSETS
+    .filter(a => filter === 'all' || a.type === filter)
+    .filter(a => !query || (a.id + ' ' + a.name).toLowerCase().includes(query))
+    .sort((x,y) => sortKey === 'id'
+      ? sortDir * x.id.localeCompare(y.id)
+      : sortDir * (val(x,sortKey) - val(y,sortKey)));
+}
+function render(){
+  const data = view();
+  rows.innerHTML = '';
+  if(!data.length){
+    rows.innerHTML = '<tr><td colspan="6"><div class="empty">Ничего не найдено — попробуйте другой запрос</div></td></tr>';
+  } else {
+    data.forEach(a => {
+      const tr = document.createElement('tr');
+      const primaryFirst = base === 'USD';
+      tr.innerHTML = `
+        <td><div class="asset"><div class="ico ${a.type === 'crypto' ? 'c' : 'f'}">${a.id}</div>
+          <div class="nm"><b>${a.id}</b><span>${a.name}</span></div></div></td>
+        <td class="num" style="${primaryFirst?'':'opacity:.72'}">$${num(a.usd)}</td>
+        <td class="num" style="${primaryFirst?'opacity:.72':''}">${num(a.rub)} ₽</td>
+        <td><span class="chg ${cls(a.chg)}">${pf(a.chg)}</span></td>
+        <td><span class="chg ${cls(a.chg7)}">${pf(a.chg7)}</span></td>
+        <td><canvas aria-hidden="true"></canvas></td>`;
+      rows.appendChild(tr);
+      spark(tr.querySelector('canvas'), a.hist.slice(-40), hexFor(a.chg));
+    });
+  }
+  document.querySelectorAll('th[data-s]').forEach(th => {
+    const on = th.dataset.s === sortKey;
+    th.innerHTML = th.textContent.replace(/[\u2191\u2193]\s*$/,'').trim() + (on ? ` <span class="ar">${sortDir>0?'↑':'↓'}</span>` : '');
+  });
+  renderMovers();
+}
+function renderMovers(){
+  const box = document.getElementById('movers'); box.innerHTML = '';
+  [...ASSETS].sort((a,b)=>Math.abs(b.chg)-Math.abs(a.chg)).slice(0,4).forEach(a => {
+    const d = document.createElement('div'); d.className = 'mover';
+    d.innerHTML = `<div class="sym"><span>${a.id} · ${a.name}</span><span class="chg ${cls(a.chg)}">${pf(a.chg)}</span></div>
+      <div class="val">${base === 'USD' ? money(a.usd,'USD') : money(a.rub,'RUB')}</div>
+      <div class="sub">${base === 'USD' ? money(a.rub,'RUB') : money(a.usd,'USD')}</div>
+      <canvas aria-hidden="true"></canvas>`;
+    box.appendChild(d);
+    spark(d.querySelector('canvas'), a.hist.slice(-40), hexFor(a.chg));
+  });
+}
+
+/* ================= конвертер ================= */
+const fromS = document.getElementById('from'), toS = document.getElementById('to');
+[{id:'USD'},{id:'RUB'},...ASSETS].forEach(a => {
+  fromS.add(new Option(a.id, a.id)); toS.add(new Option(a.id, a.id));
+});
+fromS.value = 'USD'; toS.value = 'BTC';
+const usdOf = id => id === 'USD' ? 1 : id === 'RUB' ? 1/USDRUB : ASSETS.find(a => a.id === id).usd;
+function convert(){
+  const amt = parseFloat(document.getElementById('amount').value) || 0;
+  const rate = usdOf(fromS.value) / usdOf(toS.value);
+  document.getElementById('out').value = num(amt*rate);
+  document.getElementById('big').textContent = num(amt*rate) + ' ' + toS.value;
+  document.getElementById('pair').textContent = `1 ${fromS.value} = ${num(rate)} ${toS.value}`;
+}
+document.getElementById('amount').oninput = convert;
+fromS.onchange = toS.onchange = convert;
+document.getElementById('swap').onclick = () => {
+  const t = fromS.value; fromS.value = toS.value; toS.value = t; convert();
+};
+
+/* ================= переключатели ================= */
+function setBase(b){
+  base = b; localStorage.setItem('rates-base', b);
+  document.querySelectorAll('[data-base]').forEach(x => x.setAttribute('aria-pressed', x.dataset.base === b));
+  document.getElementById('basePill').textContent = 'base: ' + b;
+  sortKey = (sortKey === 'usd' || sortKey === 'rub') ? (b === 'USD' ? 'usd' : 'rub') : sortKey;
+  render();
+}
+document.querySelectorAll('[data-base]').forEach(b => b.onclick = () => setBase(b.dataset.base));
+
+function setTheme(t){
+  theme = t; localStorage.setItem('rates-theme', t);
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll('[data-theme-btn]').forEach(x => x.setAttribute('aria-pressed', x.dataset.themeBtn === t));
+  render();
+}
+document.querySelectorAll('[data-theme-btn]').forEach(b => b.onclick = () => setTheme(b.dataset.themeBtn));
+
+document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-f]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  filter = b.dataset.f; render();
+});
+document.getElementById('q').oninput = e => { query = e.target.value.trim().toLowerCase(); render(); };
+document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => {
+  const k = th.dataset.s;
+  sortDir = (sortKey === k) ? -sortDir : (k === 'id' ? 1 : -1);
+  sortKey = k; render();
+});
+
+/* ================= тики и живые данные ================= */
+function stamp(){
+  document.getElementById('upd').textContent = 'upd ' +
+    new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+function tick(){
+  ASSETS.forEach(a => {
+    a.usd *= 1 + (Math.random()-0.5)*volOf(a)*0.7;
+    a.hist.push(a.usd); if(a.hist.length > 60) a.hist.shift();
+    recalc(a);
+  });
+  render(); convert(); stamp();
+}
+async function live(){
+  const pill = document.getElementById('srcPill');
+  const get = async (url) => {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 4500);
+    try{ const r = await fetch(url, {signal:c.signal}); return await r.json(); } finally { clearTimeout(t); }
+  };
+  let okFiat = false, okCrypto = false;
+  try{
+    const j = await get('https://open.er-api.com/v6/latest/USD');
+    if(j && j.rates){
+      if(j.rates.RUB) USDRUB = j.rates.RUB;
+      ASSETS.filter(a => a.type === 'fiat').forEach(a => { if(j.rates[a.id]) a.usd = 1/j.rates[a.id]; });
+      okFiat = true;
+    }
+  }catch(e){}
+  try{
+    const ids = Object.values(CG).join(',');
+    const j = await get('https://api.coingecko.com/api/v3/simple/price?ids=' + ids + '&vs_currencies=usd&include_24hr_change=true');
+    if(j && Object.keys(j).length){
+      ASSETS.filter(a => a.type === 'crypto').forEach(a => {
+        const d = j[CG[a.id]];
+        if(d && d.usd){ a.usd = d.usd; if(d.usd_24h_change != null) a.liveChg = d.usd_24h_change; }
+      });
+      okCrypto = true;
+    }
+  }catch(e){}
+
+  if(okFiat || okCrypto){
+    ASSETS.forEach((a,i) => { buildHistory(a,i); if(a.liveChg != null) a.chg = a.liveChg; });
+    pill.textContent = 'source: live API' + (okFiat && okCrypto ? '' : ' (частично)');
+    pill.className = 'pill on';
+  } else {
+    pill.textContent = 'source: demo dataset (оффлайн)';
+    pill.className = 'pill off';
+  }
+  ASSETS.forEach(recalc);
+  document.getElementById('rubPill').textContent = 'USD/RUB: ' + num(USDRUB);
+  render(); convert();
+}
+
+setBase(base); setTheme(theme);
+document.getElementById('rubPill').textContent = 'USD/RUB: ' + num(USDRUB);
+render(); convert(); stamp(); live();
+setInterval(tick, 5000);
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+</script>
+</body>
+</html>
